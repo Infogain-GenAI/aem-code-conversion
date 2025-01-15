@@ -1,0 +1,32 @@
+{
+  "name": "newprojts",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "description": "",
+  "dependencies": {
+    "@babel/parser": "^7.26.3",
+    "@babel/traverse": "^7.26.4",
+    "@types/babel__traverse": "^7.20.6",
+    "antlr4ng": "^3.0.14",
+    "axios": "^1.7.9",
+    "chunk-text": "^2.0.1",
+    "dotenv": "^16.4.7",
+    "fs": "^0.0.1-security",
+    "langchain": "^0.3.11",
+    "path": "^0.12.7",
+    "tiktoken": "^1.0.18",
+    "typescript": "^5.7.2"
+  },
+  "devDependencies": {
+    "@types/chunk-text": "^1.0.2",
+    "@types/node": "^22.10.5",
+    "antlr4ng-cli": "^2.0.0"
+  }
+}

@@ -1,0 +1,370 @@
+import { File, Metadata, MethodMetadata } from "../types/types";
+//import { JavaMetadataListener } from "../listeners/JavaMetadataListener";
+import { LoggingService } from "../services/loggingService";
+import { JavaMetadata, JavaClassMetadata, JavaMethodMetadata, JavaFieldMetadata, JavaConstructorMetadata, JavaParameterMetadata } from '../types/JavaMetadata';
+//import { ANTLRInputStream, CharStreams, CommonTokenStream } from "antlr4ts";
+// import Java8Lexer  from "../generated/Java8Lexer";
+// import JavaParser from "../generated/Java8Parser";
+// import { ParseTreeWalker } from "antlr4ts/tree/ParseTreeWalker";
+import { exit, kill, listeners } from "process";
+import { parse } from "java-parser";
+import { inspect } from "util";
+import path from "path";
+import fs from "fs";
+
+
+const logger = LoggingService.getInstance();
+
+
+
+/**
+ * Extract metadata for methods in a file.
+ * @param file - File object containing name and content.
+ * @returns Metadata object with method details.
+ */
+/**
+ * Extract metadata based on file type.
+ * @param file - File object containing name and content.
+ * @returns Metadata object with method details.
+ */
+export function extractMetadata(file: File): Metadata {
+
+    logger.logDebug(`Extracting metadata for file: ${file.name}`);
+    const extension = file.name.split(".").pop()?.toLowerCase();
+    const metadata = { fileName: file.name, methods: [] };
+
+    if (extension === "java") {
+        const javaMetadata = extractJavaMetadata(file.content);
+        return { ...javaMetadata, methods: javaMetadata.javaMethods };
+    // } else if (extension === "py") {
+    //     return extractPythonMetadata(file.content);
+    // // } else if (extension === "ts" || extension === "js") {
+    // //     return extractTypeScriptMetadata(file.content);
+    // // } else {
+    //     logger.logError(`Error extracting metadata for file ${file.name}`);
+    //     throw new Error(`Unsupported file type: ${extension}`);
+    // }
+   // return javaMetadata;
+    }
+return metadata;
+}
+
+/**
+ * Extract metadata for Java files.
+ * @param content - The full file content as a string.
+ * @returns Metadata object with method details.
+ */
+export function extractJavaMetadata(content: string): JavaMetadata {
+    const methods = analyzeFileMethodsUsingAST(content);
+    return { fileName: "Java", javaMethods: methods, classes: [], imports: [], packageName: "" };
+}
+
+// export function extractJavaMetadata(content: string): JavaMetadata {
+//     const cst = parse(content); // Parse the content into a Concrete Syntax Tree (CST)
+//     const javametadata: JavaMetadata = {
+//         fileName: '',
+//         packageName: '',
+//         imports: [],
+//         classes: [],
+//         javaMethods: [] // Add the methods property
+//     };
+
+//     traverseCST(cst, javametadata);
+    
+//     return {fileName: javametadata.fileName,packageName: javametadata.packageName, imports: javametadata.imports,
+//         classes: javametadata.classes,javaMethods: javametadata.javaMethods};
+
+// }
+
+/**
+ * Extract metadata for Java files using ANTLR.
+ * @param content - The Java file content as a string.
+ * @returns Extracted metadata.
+ */
+// export function extractJavaMetadata(content: string): JavaMetadata {
+//     //const inputStream = new ANTLRInputStream(content);
+//     const inputStream = CharStreams.fromString(content);
+//     const lexer = new Java8Lexer(inputStream as any);
+//     const tokenStream = new CommonTokenStream(lexer as any);
+//     const parser = new JavaParser(tokenStream as any);
+
+//     const metadata: JavaMetadata = {
+//         fileName: '',
+//         packageName: '',
+//         imports: [],
+//         classes: [],
+//         javaMethods: []
+//     };
+
+//     // Parse the content and walk the parse tree
+//     const compilationUnit = parser.compilationUnit();
+//     const listener = new JavaMetadataListener(metadata);
+//     ParseTreeWalker.DEFAULT.walk(listener as any, compilationUnit as any);
+
+//     return metadata;
+// }
+
+
+/**
+ * Extract metadata for Python files.
+ * @param content - The full file content as a string.
+ * @returns Metadata object with method details.
+ */
+// export function extractPythonMetadata(content: string): Metadata {
+//     const methods = analyzeFileMethods(content);
+//     return { fileName: "Python", methods };
+
+// }
+
+/**
+ * Extract metadata for TypeScript files.
+ * @param content - The full file content as a string.
+ * @returns Metadata object with method details.
+ */
+// export function extractTypeScriptMetadata(content: string): Metadata {
+//     const methods = analyzeFileMethodsUsingAST(content);
+//     return { fileName: "TypeScript", methods };
+// }
+
+/**
+ * Analyze the file content and extract methods with their positions.
+ * @param content - The full file content as a string.
+ * @returns Array of MethodMetadata with method name, start, and end positions.
+ */
+// export function analyzeFileMethods(content: string): MethodMetadata[] {
+//     const methodRegex = /(?<methodName>\w+)\s*\([\w\s,]*\)\s*{/g; // Regex to find method declarations
+//     const methods: MethodMetadata[] = [];
+//     let match;
+
+//     while ((match = methodRegex.exec(content)) !== null) {
+//         const methodName = match.groups?.methodName || "UnknownMethod";
+//         const start = match.index;
+//         const end = findMethodEnd(content, start);
+
+//         methods.push({ methodName, start, end });
+//     }
+
+//     return methods;
+// }
+
+/**
+ * Find the end position of a method by matching curly braces.
+ * @param content - The file content.
+ * @param start - The start index of the method.
+ * @returns The end index of the method.
+ */
+function findMethodEnd(content: string, start: number): number {
+    const stack: string[] = [];
+    for (let i = start; i < content.length; i++) {
+        if (content[i] === "{") stack.push("{");
+        if (content[i] === "}") stack.pop();
+
+        if (stack.length === 0) return i + 1;
+    }
+    throw new Error("Unbalanced braces detected");
+}
+
+
+/**
+ * Analyze file content and extract methods using AST.
+ * @param content - The full file content as a string.
+ * @returns Array of MethodMetadata with method name, start, and end positions.
+ */
+export function analyzeFileMethodsUsingAST(content: string): JavaMethodMetadata[] {
+    const methods: JavaMethodMetadata[] = [];
+
+    // Parse the content into an Abstract Syntax Tree (AST)
+    //const ast = parse(content, { loc: true });
+
+    const ast = parse(content);
+    const nodeString = inspect(ast, { depth: null, maxArrayLength: null });
+
+
+    // Define the output file path
+    const outputPath = path.join('C:/Users/sumeet.patil/Desktop/JavaClasses/', 'ast.txt');
+
+    //const outputPath = path.join('C:/Users/sumeet.patil/Desktop/JavaClasses/', 'nodeOutput.txt');
+
+    // Write the string representation to the file
+    fs.writeFileSync(outputPath, nodeString, 'utf-8');
+    // Traverse the AST to find methods
+    traverseAST(ast, node => {
+        if (node.type === "MethodDefinition") {
+            methods.push({
+                methodName: node.key.name,
+                start: node.loc.start.line,
+                end: node.loc.end.line,
+                modifiers: node.modifiers,
+                returnType: node.returnType,
+                parameters: node.params,
+                annotations: node.annotations
+            });
+                // methodName: node.key.name,
+                // start: node.loc.start.line,
+                // end: node.loc.end.line
+            // });
+        }
+    });
+
+     return methods;
+}
+
+/**
+ * Traverse an AST and apply a callback to each node.
+ * @param node - Current AST node.
+ * @param callback - Function to apply to each node.
+ */
+function traverseAST(node: any, callback: (node: any) => void) {
+    callback(node);
+    for (const key in node) {
+        if (node[key] && typeof node[key] === "object") {
+            traverseAST(node[key], callback);
+        }
+    }
+}
+
+/**
+ * Recursively find nested methods or lambdas in the content.
+ * @param content - The file content as a string.
+ * @returns Array of MethodMetadata including nested methods.
+ */
+// function findNestedMethods(content: string): MethodMetadata[] {
+//     const nestedRegex = /(?<methodName>\w+)\s*\([^)]*\)\s*{\s*(([^{}]*){([^{}]*)})+/g;
+//     const methods: MethodMetadata[] = [];
+//     let match;
+
+//     while ((match = nestedRegex.exec(content)) !== null) {
+//         const methodName = match.groups?.methodName || "AnonymousMethod";
+//         const start = match.index;
+//         const end = findMethodEnd(content, start);
+
+//         methods.push({ methodName, start, end });
+//     }
+
+//     return methods;
+// }
+
+/**
+ * Handle edge cases during metadata extraction.
+ * @param file - File to process.
+ * @returns Metadata or an error message.
+ */
+export function safeExtractMetadata(file: File): Metadata | null {
+    try {
+        if (!file.content.trim()) throw new Error("File is empty");
+        const metadata = extractMetadata(file);
+        if (metadata.methods.length === 0) throw new Error("No methods found");
+        return metadata;
+    } catch (error) {
+        console.error(`Error processing file ${file.name}:`, error);
+        return null;
+    }
+}
+
+const tokenCache = new Map<string, number>();
+
+export function cachedTokenEstimate(content: string): number {
+    if (tokenCache.has(content)) return tokenCache.get(content)!;
+
+    const tokenCount = estimateTokens(content);
+    tokenCache.set(content, tokenCount);
+    return tokenCount;
+}
+/**
+ * Estimate the number of tokens in the content.
+ * @param content - The full file content as a string.
+ * @returns The estimated number of tokens.
+ */
+function estimateTokens(content: string): number {
+    // Simple token estimation by splitting content by whitespace and punctuation
+    const tokens = content.split(/\s+|[.,;:{}()]/).filter(token => token.length > 0);
+    return tokens.length;
+}
+
+function traverseCST(node: any, javametadata: JavaMetadata) {
+    // Convert the node object to a string representation
+    const nodeString = inspect(node, { depth: null, maxArrayLength: null });
+
+
+    // Define the output file path
+    const outputPath = path.join('C:/Users/sumeet.patil/Desktop/JavaClasses/', 'nodeOutput1.json');
+
+    //const outputPath = path.join('C:/Users/sumeet.patil/Desktop/JavaClasses/', 'nodeOutput.txt');
+
+    // Write the string representation to the file
+    fs.writeFileSync(outputPath, nodeString, 'utf-8');
+    kill(0);
+    if (node.node === 'packageDeclaration') {
+        javametadata.packageName = node.children.packageName[0].image;
+    } else if (node.node === 'importDeclaration') {
+        javametadata.imports.push(node.children.packageName[0].image);
+    } else if (node.node === 'classDeclaration') {
+        const javaclassMetadata: JavaClassMetadata = {
+            className: node.children.Identifier[0].image,
+            modifiers: node.children.classModifier?.map((mod: any) => mod.image) || [],
+            superclass: node.children.superclass?.[0].children.typeName[0].image || '',
+            interfaces: node.children.superinterfaces?.[0].children.interfaceTypeList[0].children.typeName.map((iface: any) => iface.image) || [],
+            annotations: [],
+            fields: [],
+            methods: [],
+            constructors: []
+        };
+        javametadata.classes.push(javaclassMetadata);
+        traverseClassBody(node.children.classBody[0], javaclassMetadata, javametadata);
+    }
+
+    // Recursively traverse child nodes
+    for (const key in node.children) {
+        if (Array.isArray(node.children[key])) {
+            node.children[key].forEach((child: any) => traverseCST(child, javametadata));
+        }
+    }
+}
+
+function traverseClassBody(node: any, javaclassMetadata: JavaClassMetadata, javametadata: JavaMetadata) {
+    node.children.classBodyDeclaration.forEach((decl: any) => {
+        if (decl.children.memberDeclaration) {
+            const member = decl.children.memberDeclaration[0];
+            if (member.children.methodDeclaration) {
+                const method = member.children.methodDeclaration[0];
+                const javamethodMetadata: JavaMethodMetadata = {
+                    methodName: method.children.methodHeader[0].children.methodDeclarator[0].children.Identifier[0].image,
+                    modifiers: decl.children.modifier?.map((mod: any) => mod.image) || [],
+                    returnType: method.children.methodHeader[0].children.result[0].children.unannType[0].image,
+                    parameters: method.children.methodHeader[0].children.methodDeclarator[0].children.formalParameterList?.[0].children.formalParameter.map((param: any) => ({
+                        parameterName: param.children.variableDeclaratorId[0].children.Identifier[0].image,
+                        parameterType: param.children.unannType[0].image
+                    })) || [],
+                    annotations: [],
+                    start: method.location.startLine,
+                    end: method.location.endLine
+                };
+                javaclassMetadata.methods.push(javamethodMetadata);
+                javametadata.javaMethods.push(javamethodMetadata);
+
+            } else if (member.children.fieldDeclaration) {
+                const field = member.children.fieldDeclaration[0];
+                const fieldMetadata: JavaFieldMetadata = {
+                    fieldName: field.children.variableDeclaratorList[0].children.variableDeclarator[0].children.variableDeclaratorId[0].children.Identifier[0].image,
+                    modifiers: decl.children.modifier?.map((mod: any) => mod.image) || [],
+                    fieldType: field.children.unannType[0].image,
+                    annotations: []
+                };
+                javaclassMetadata.fields.push(fieldMetadata);
+            } else if (member.children.constructorDeclaration) {
+                const constructor = member.children.constructorDeclaration[0];
+                const constructorMetadata: JavaConstructorMetadata = {
+                    constructorName: constructor.children.constructorDeclarator[0].children.Identifier[0].image,
+                    modifiers: decl.children.modifier?.map((mod: any) => mod.image) || [],
+                    parameters: constructor.children.constructorDeclarator[0].children.formalParameterList?.[0].children.formalParameter.map((param: any) => ({
+                        parameterName: param.children.variableDeclaratorId[0].children.Identifier[0].image,
+                        parameterType: param.children.unannType[0].image
+                    })) || [],
+                    annotations: []
+                };
+                javaclassMetadata.constructors.push(constructorMetadata);
+            }
+        }
+    });
+}
+
