@@ -28,7 +28,3 @@ To start the conversion process, use the following command:
 ```sh
 ts-node src/main.ts
 ```
-
-## Contributing
-
-We welcome contributions! Please read our [contributing guidelines](CONTRIBUTING.md) for more details.
